@@ -1,0 +1,126 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="bundle.js"></script>
+  </head>
+  <body class="text-white" style="background-color:#222222;">
+    <div class="container justify-content-center">
+      <nav class="navbar navbar-expand-md justify-content-between bg-dark navbar-dark fixed-top">
+        <span class="navbar-brand d-flex" href="#">Playable List</span>
+        <div class="form-inline">
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text">Playlist Address</span>
+            </div>
+            <input id="playlist-id" type="text" placeholder="0x0000000000000000000000000000000000000000" class="form-control"></input>
+          </div>
+        </div>
+      </nav>
+      <h1 class="d-flex">Playable List Interface</h1>
+      <div class="row">
+        <div class="col">
+          <h2>Add To Playlist</h2>
+          <kbd class="" style="text-align: center;">Search for Add Song to the Playlists</kbd>
+          <form id="search">
+            <div class="input-group mb-3 justify-content-center bg-dark" name="songInput">
+              <div class="input-group-prepend">
+                <span class="input-group-text">Spotify</span>
+              </div>
+              <input type="text" class="form-control bg-dark text-white" placeholder="Song Name" name="songName" id="SongName" />
+              <div class="input-group-append">
+                <button class="btn btn-success" type="submit">Search</button>
+              </div>
+            </div>
+          </form>
+          <form id="add">
+            <div class="form-group">
+              <label for="songurl">Song URL</label>
+              <input id="songurl" type="text" placeholder="https://open.spotify.com/track/46Lx5epWOQBA3J86ovnxmV" class="form-control"></input>
+            </div>
+            
+            <div class="input-group mb-3">
+              <div class="input-group-prepend">
+                <button type="submit" class="btn btn-primary">Add</button>
+              </div>
+              <input id="playlist-id" type="number" placeholder="Weight" class="form-control"></input>
+              <div class="input-group-append">
+                <span class="input-group-text">wei</span>
+              </div>
+            </div>
+            <p id="add-result"></p>
+          </form>
+
+          <hr>
+
+          <form id="get">
+            <h2>Get Song From Playlist</h2>
+            <div class="form-group">
+              <label for="idx-id">List Index</label>
+              <input id="idx-id" placeholder="0" type="number" class="form-control" style="background-color: rgb(24, 26, 27);"></input>
+            </div>
+            <button type="submit" class="btn btn-primary">Get Song</button>
+            <p id="get-result"></p>
+          </form>
+
+          <hr>
+
+          <form id="getAll">
+            <h2>Get All Songs From Playlist</h2>
+            <div class="form-group">
+            </div>
+            <button type="submit" class="btn btn-primary">Get All Songs</button>
+            <p id="get-results"></p>
+          </form>
+
+          <hr>
+
+          <form id="remove">
+            <h2>Remove Song</h2>
+            <div class="form-group">
+              <label for="remove-id">List Index</label>
+              <input id="remove-id" placeholder="0" type="number" class="form-control" style="background-color: rgb(24, 26, 27);"></input>
+            </div>
+            <button type="submit" class="btn btn-primary">Remove</button>
+            <p id="remove-result"></p>
+          </form>
+        </div>
+        
+        <div id="playlist" class="col list-group">
+          
+          <script src="https://sdk.scdn.co/spotify-player.js"></script>
+          <script>
+            window.onSpotifyWebPlaybackSDKReady = () => {
+              const token = 'BQAokNgcAunXzg_AayOh77H0xscJQkkqYVwfccuWyT4izX6H-hRO68NaXCnQNOAHIkZo64ALuGbM3UjyvoOvi3gs6ObS90YeFXxATgJn8og0P8TJe1-toGRcvY3s9PIguhK3KC9D8EcAeGI4FRcfCZB8jgN1KORTQMcZbiHf';
+              const player = new Spotify.Player({
+                name: 'Playable List',
+                getOAuthToken: cb => { cb(token); }
+              });
+              
+              // Error handling
+              player.addListener('initialization_error', ({ message }) => { console.error(message); });
+              player.addListener('authentication_error', ({ message }) => { console.error(message); });
+              player.addListener('account_error', ({ message }) => { console.error(message); });
+              player.addListener('playback_error', ({ message }) => { console.error(message); });
+
+              // Playback status updates
+              player.addListener('player_state_changed', state => { console.log(state); });
+
+              // Ready
+              player.addListener('ready', ({ device_id }) => {
+                console.log('Ready with Device ID', device_id);
+              });
+
+              // Not Ready
+              player.addListener('not_ready', ({ device_id }) => {
+                console.log('Device ID has gone offline', device_id);
+              });
+
+              // Connect to the player!
+              player.connect();
+            };
+          </script>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

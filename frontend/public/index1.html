@@ -1,0 +1,164 @@
+<html>
+
+<head>
+    <title>Playable List</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.0/css/all.css"
+        integrity="sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ" crossorigin="anonymous">
+    <script src="bundle.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<body class="text-white" style="background-color:#222222;">
+    <div class="container-fluid justify-content-center">
+        <!--nav-bar-->
+        <nav class="navbar navbar-expand-md justify-content-between bg-dark navbar-dark fixed-top">
+            <div class="form-inline">
+                <a class="navbar-brand" href="/">
+                    <img src="favicon.ico" alt="Logo" style="width:40px;">
+                    Playable List
+                </a>
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <Button id="getEntryCostBtn" type="button" class="btn btn-info">Get</Button>
+                        <span id="EntryCostText" class="input-group-text">Entry Cost (Gwei)</span>
+                    </div>
+                    <input id="entry-cost" type="number" placeholder="1000" class="form-control"></input>
+                    <div class="input-group-append">
+                        <Button id="setEntryCostBtn" type="submit" class="btn btn-primary">Set</Button>
+                    </div>
+                </div>
+                <button class="btn btn-danger spotifyLogin" style="display: none;" onclick="spotifyAuth()">Spotify
+                    Login</button>
+                <button id="enableEthereumButton" class="btn btn-danger" style="display: none;">Get Ethereum</button>
+                <Button id="getVersion" type="button" class="btn btn-info">Get Version</Button>
+            </div>
+
+            <div class="form-inline">
+                <div class="input-group">
+                    <input id="playlist-id" type="text" size="52"
+                        placeholder="EX. 0xA54B25a1EA558512DEF1adD7b2b301c16051C065" class="form-control"></input>
+                    <div class="input-group-append">
+                        <span id="PlaylistAddrText" class="input-group-text">Playlist Address</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <h1 class="d-flex">Playable List Interface</h1>
+        <div class="row">
+            <div class="col">
+                <div class="justify-content-center d-flex">
+                    <div id="searchText" class="p-2">Search for a Song to Add to the Playlists</div>
+                </div>
+                <!--search song-->
+                <form id="search" class="d-flex">
+                    <div class="input-group mb-3 justify-content-center bg-dark" name="songInput">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Spotify</span>
+                        </div>
+                        <input type="text" class="form-control bg-dark text-white" placeholder="Song Name"
+                            name="songName" id="SongName" />
+                        <div class="input-group-append">
+                            <button class="btn btn-success" type="submit">Search</button>
+                        </div>
+                    </div>
+                </form>
+                <div id="search-results">
+                </div>
+
+                <script src="https://sdk.scdn.co/spotify-player.js"></script>
+                <script>
+                    function getCookie(cname) {
+                        var name = cname + "=";
+                        var decodedCookie = decodeURIComponent(document.cookie);
+                        var ca = decodedCookie.split(';');
+                        for (var i = 0; i < ca.length; i++) {
+                            var c = ca[i];
+                            while (c.charAt(0) == ' ') {
+                                c = c.substring(1);
+                            }
+                            if (c.indexOf(name) == 0) {
+                                return c.substring(name.length, c.length);
+                            }
+                        }
+                        return "";
+                    }
+                    function setCookie(cname, cvalue, hours) {
+                        var d = new Date();
+                        d.setTime(d.getTime() + (hours * 60 * 60 * 1000));
+                        var expires = "expires=" + d.toUTCString();
+                        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+                    }
+                    function spotifyAuth() {
+                        const my_client_id = '9c51eed9e4534dc3b3711c58b43c13c9';
+                        const scopes = 'playlist-read-collaborative playlist-read-private playlist-modify-private playlist-modify-public streaming user-read-email user-read-private user-modify-playback-state';
+                        const redirect_uri = window.location.origin;
+                        const url = `https://accounts.spotify.com/authorize?response_type=token&client_id=${my_client_id}&redirect_uri=${(redirect_uri)}&scope=${encodeURIComponent(scopes)}`
+                        window.location.href = url;
+                    }
+                    window.onSpotifyWebPlaybackSDKReady = () => {
+                        var token = getCookie("spotifyToken");
+                        console.log(window.location.hash.substr(1).split('&')[0].split('=')[0])
+                        if (window.location.hash.substr(1).split('&')[0].split('=')[0] == 'access_token') {
+                            token = window.location.hash.substr(1).split('&')[0].split('=')[1]
+                            console.log(token);
+                            setCookie("spotifyToken", token, 1);
+                        } else {
+                            console.error("Could not connect to any spotify account. No token loaded.\nPlease login to spotify.");
+                        }
+                        const player = new Spotify.Player({
+                            name: 'Playable List',
+                            getOAuthToken: cb => { cb(token); }
+                        });
+
+                        // Error handling
+                        player.addListener('initialization_error', ({ message }) => {
+                            console.error(message);
+                            document.querySelector('.spotifyLogin').style.display = "initial";
+                        });
+                        player.addListener('authentication_error', ({ message }) => {
+                            console.error(message);
+                            document.querySelector('.spotifyLogin').style.display = "initial";
+                        });
+                        player.addListener('account_error', ({ message }) => {
+                            console.error(message);
+                            document.querySelector('.spotifyLogin').style.display = "initial";
+                        });
+                        player.addListener('playback_error', ({ message }) => {
+                            console.error(message);
+                            document.querySelector('.spotifyLogin').style.display = "initial";
+                        });
+
+                        // Playback status updates
+                        player.addListener('player_state_changed', state => { console.log(state); });
+
+                        // Ready
+                        player.addListener('ready', ({ device_id }) => {
+                            console.log('Ready with Device ID', device_id);
+                            setCookie('device_id', device_id, 24);
+                        });
+
+                        // Not Ready
+                        player.addListener('not_ready', ({ device_id }) => {
+                            console.log('Device ID has gone offline', device_id);
+                        });
+                        // Connect to the player!
+                        player.connect();
+                    };
+
+                </script>
+            </div>
+            <div class="col">
+                <div class="justify-content-center d-flex">
+                    <div class="p-2">Get Current Playlist</div>
+                </div>
+                <button type="button" id="getAll" class="d-flex btn btn-info btn-block">Get Songs</button>
+                <div id="currentSong"></div>
+                <div id="playlist">
+                </div>
+            </div>
+        </div>
+</body>
+
+</html>
