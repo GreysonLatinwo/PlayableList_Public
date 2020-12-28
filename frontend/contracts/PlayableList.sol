@@ -43,7 +43,7 @@ contract PlayableList
     //mapping(address => uint) private entryCosts;
     mapping(address => playlist) private playlistDict;
     address payable dev = msg.sender;
-    string public version = '0.2';
+    string public version = '0.2.1';
     
     function setEntryCost() public payable {
         if(playlistDict[msg.sender].entryCost < msg.value)
@@ -84,6 +84,7 @@ contract PlayableList
         if(playlistDict[listID].List[SongID-1].songID != 0){
             playlistDict[listID].List[SongID-1].weight += msg.value;
         }
+        emit playlistAltered(listID, playlistDict[listID].List[SongID-1].songID, playlistDict[listID].List[SongID-1].weight, playlistDict[listID].entryCost, playlistDict[listID].List[SongID-1].trackURI);
     }
     
     //gets song at given playlist index and song index
@@ -122,24 +123,17 @@ contract PlayableList
         require(listID != address(0));
         uint arrIdx = givenSongID-1;
         Song memory song2Remove = playlistDict[listID].List[arrIdx];
+        require(listID.balance >= song2Remove.weight);
         Song[] storage playlistList = playlistDict[listID].List;
         for(uint i = arrIdx; i < playlistList.length-1; i++){
             playlistList[i] = playlistList[i+1];
             playlistList[i].songID = i+1;
         }
-        
         playlistList.pop();
-        if(song2Remove.weight <= msg.value){
-            uint money = msg.value;
-            uint entryCost = playlistDict[listID].entryCost;
-            uint playlistOwnerPayment = entryCost;
-            money -= entryCost;
-            playlistOwnerPayment += (money / 2);
-            if(playlistOwnerPayment > 0)
-                listID.transfer(playlistOwnerPayment);
-            if(msg.value - playlistOwnerPayment > 0)
-                dev.transfer(msg.value - playlistOwnerPayment);
-        }
+
+        if(song2Remove.weight > 0)
+            dev.transfer(song2Remove.weight);
+
         emit playlistAltered(listID, playlistList.length+1, msg.value, playlistDict[listID].entryCost, song2Remove.trackURI);
     }
     

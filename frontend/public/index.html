@@ -32,7 +32,7 @@
         <button class="btn btn-danger spotifyLogin" style="display: none;" onclick="spotifyAuth()">Spotify
           Login</button>
         <button id="enableEthereumButton" class="btn btn-danger" style="display: none;">Get Ethereum</button>
-        <Button id="getVersion" type="button" class="btn btn-info">Get Version</Button>
+        <!--<Button id="getVersion" type="button" class="btn btn-info">Get Version</Button>-->
       </div>
 
       <div class="form-inline">
@@ -57,9 +57,10 @@
             <div class="input-group-prepend">
               <span class="input-group-text">Spotify</span>
             </div>
-            <input type="text" class="form-control bg-dark text-white" placeholder="Song Name" name="songName"
-              id="SongName" />
+            <input type="text" class="form-control bg-dark text-white" placeholder="Song Name" name="songName" id="SongName" />
             <div class="input-group-append">
+              <input id="search-limit" type="number" size="2" placeholder="5"
+                class="form-control bg-dark"></input>
               <button class="btn btn-success" type="submit">Search</button>
             </div>
           </div>
@@ -92,7 +93,15 @@
           }
           function spotifyAuth() {
             const my_client_id = '9c51eed9e4534dc3b3711c58b43c13c9';
-            const scopes = 'playlist-read-collaborative playlist-read-private playlist-modify-private playlist-modify-public streaming user-read-email user-read-private user-modify-playback-state';
+            const scopes = `playlist-read-collaborative 
+            playlist-read-private 
+            playlist-modify-private 
+            playlist-modify-public 
+            streaming 
+            user-read-email 
+            user-read-private 
+            user-modify-playback-state
+            ugc-image-upload`;
             const redirect_uri = window.location.origin;
             const url = `https://accounts.spotify.com/authorize?response_type=token&client_id=${my_client_id}&redirect_uri=${(redirect_uri)}&scope=${encodeURIComponent(scopes)}`
             window.location.href = url;
@@ -131,7 +140,12 @@
             });
 
             // Playback status updates
-            player.addListener('player_state_changed', state => { console.log(state); });
+            player.addListener('player_state_changed', state => { 
+              console.log(state); 
+              document.getElementById('currSongImg').src = state.track_window.current_track.album.images[2].url;
+              document.getElementById('currSongName').innerText = state.track_window.current_track.name;
+              document.getElementById('currSongArtist').innerText = state.track_window.current_track.artists[0].name;
+            });
 
             // Ready
             player.addListener('ready', ({ device_id }) => {

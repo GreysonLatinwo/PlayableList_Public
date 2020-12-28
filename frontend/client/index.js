@@ -1,4 +1,5 @@
-import Web3 from 'web3';
+import Web3 from 'web3'
+
 import Playable from '../build/contracts/PlayableList.json';
 
 let web3;
@@ -39,7 +40,7 @@ const initContract = () => {
 };
 
 const initApp = () => {
-  const $add = document.getElementById('add');
+  //const $add = document.getElementById('add');
   //const $addResult = document.getElementById('add-result');
   //const $get = document.getElementById('get');
   //const $getResult = document.getElementById('get-result');
@@ -51,7 +52,6 @@ const initApp = () => {
   const $playlist = document.getElementById('playlist');
   const $getEntryCost = document.getElementById('getEntryCostBtn');
   const $setEntryCost = document.getElementById('setEntryCostBtn');
-  const $getVersion = document.getElementById('getVersion');
 
   let accounts = [];
 
@@ -59,13 +59,23 @@ const initApp = () => {
     .then(_accounts => {
       accounts = _accounts;
     });
-
-  $getVersion.addEventListener('click', (e) => {
+/*
+  document.getElementById('getVersion').addEventListener('click', (e) => {
     playable.methods.version().call()
       .then(result => {
         console.log(result)
       });
   });
+*/
+
+  //constract event listeners
+  playable.events.playlistAltered()
+    .on('data', function (event) {
+      console.log(event); // same results as the optional callback above
+      var playlistID = document.getElementById('playlist-id').value;
+      if (event.returnValues.playlistID == playlistID)
+        $getAll.click();
+    });
 
   $getEntryCost.addEventListener('click', (e) => {
     const playlistID = document.getElementById('playlist-id').value;
@@ -80,14 +90,16 @@ const initApp = () => {
     }
     playable.methods.getEntryCost(playlistID).call()
       .then(result => {
-        console.log(result)
+        console.log(accounts[0], result)
       });
   });
 
   $setEntryCost.addEventListener('click', (e) => {
     const entryCost = document.getElementById('entry-cost').value;
-    playable.methods.setEntryCost().call({ from: accounts[0], value: entryCost })
-      .then(result => {
+
+    playable.methods.setEntryCost().send({ from: accounts[0], value: entryCost })
+      .on("receipt", (receipt) => {
+        console.log(receipt)
         $getEntryCost.click();
       });
   });
@@ -96,7 +108,10 @@ const initApp = () => {
   $search.addEventListener('submit', (e) => {
     e.preventDefault();
     const searchValue = e.target.elements[0].value.trim();
-    const spotifyURL = ("https://api.spotify.com/v1/search?q=" + encodeURIComponent(searchValue) + "&type=track&limit=5");
+    var searchLimit = e.target.elements[1].value;
+    if(searchLimit == "")
+      searchLimit = 5
+    const spotifyURL = ("https://api.spotify.com/v1/search?q=" + encodeURIComponent(searchValue) + "&type=track&limit=" + searchLimit);
     console.log(searchValue);
     console.log(spotifyURL);
     //spotify search code 
@@ -108,7 +123,8 @@ const initApp = () => {
         console.log(data.tracks.items);
         document.getElementById('search-results').innerHTML = ''
         for (var i = 0; i < data.tracks.items.length; i++) {
-          document.getElementById('search-results').innerHTML += `
+          document.getElementById('search-results').innerHTML += 
+          `
             <li class="list-group-item bg-dark d-flex justify-content-between align-items-center">
               <img src='${data.tracks.items[i].album.images[2].url}' alt='Thumbnail' style="width:64px;height:64px;">
               <span id="add-song-name-${i}">${data.tracks.items[i].name} by ${data.tracks.items[i].artists[0].name}</span>
@@ -121,7 +137,8 @@ const initApp = () => {
                   </div>
                 </div>
               </div>
-            </li>\n`;
+            </li>\n
+          `;
         }
       }, error: function (err) {
         console.log("Error retrieving spotify API\n", err);
@@ -144,7 +161,10 @@ const initApp = () => {
                 PlaylistAddrText.innerText = "Playlist Address";
               }
               console.log("sending from: " + accounts[0])
-              document.getElementById('add-button' + idx).outerHTML = `<button id="add-button${idx}" name="add" type="button" class="btn btn-outline-warning"><span class="spinner-border spinner-border-sm"></span> Loading..</button>`
+              //document.getElementById('add-button' + idx).outerHTML = `<button id="add-button${idx}" name="add" type="button" class="btn btn-outline-warning"><span class="spinner-border spinner-border-sm"></span> Loading..</button>`
+              document.getElementById('add-button' + idx).innerHTML = '<span class="spinner-border spinner-border-sm"></span> Loading..'
+              document.getElementById('add-button' + idx).classList.remove('btn-primary')
+              document.getElementById('add-button' + idx).classList.add('btn-outline-warning')
               console.log(data.responseJSON['tracks']["items"][idx]);
               let trackInfo = data.responseJSON['tracks']["items"][idx];
               playable.methods.AddSong(trackInfo['album']['uri'],
@@ -156,6 +176,9 @@ const initApp = () => {
                 '', playlistID)
                 .send({ from: accounts[0], value: weight }).on("receipt", (receipt) => {
                   document.getElementById('add-button' + idx).outerHTML = `<button id="add-button${idx}" name="add" type="button" class="btn btn-primary">Add</button>`
+                  document.getElementById('add-button' + idx).innerHTML = 'Add'
+                  document.getElementById('add-button' + idx).classList.remove('btn-outline-warning')
+                  document.getElementById('add-button' + idx).classList.add('btn-primary')
                   $getAll.click();
                 }).catch(function (e) {
                   var errortext = "Add";
@@ -163,7 +186,9 @@ const initApp = () => {
                     errortext = "Denied";
                   else
                     errortext = "Failed";
-                  document.getElementById('add-button' + idx).outerHTML = `<button id="add-button${idx}" name="add" type="button" class="btn btn-danger">${errortext}</button>`
+                  document.getElementById('add-button' + idx).innerHTML = errortext
+                  document.getElementById('add-button' + idx).classList.remove('btn-outline-warning')
+                  document.getElementById('add-button' + idx).classList.add('btn-danger')
                   console.error(e);
                 });
             });
@@ -203,101 +228,191 @@ const initApp = () => {
         //order by indexing power
         JSONResult.sort((a, b) => parseInt(b['weight']) - parseInt(a['weight']));
         //draw list
-        for (var i = 0; i < JSONResult.length; i++) {
-          const putData = ``;
-          const spotifyURL = (`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(JSONResult[i]['trackURI'])}`);
-          const xmlhttp = new XMLHttpRequest();
-          xmlhttp.open("POST", spotifyURL, false);
-          xmlhttp.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken"));
-          //xmlhttp.send(putData)
-          if (i == 0) {
-            document.getElementById("currentSong").innerHTML =
-              `
-            <div class="justify-content-center">
-              <div class="mx-auto card bg-dark border border-primary rounded-lg">
-                <img class="mx-auto card-img-top" src="${JSONResult[i]["albumImage"]}" alt="Current Song Thumbnail" style="max-width:400px">
-                <div class="mx-auto card-body text-center justify-content-center">
-                  <div class="d-flex d-inline-block">
-                  <h4 class="mx-auto card-title">${JSONResult[i]["trackName"]}</h4>
-                  <div>
-                  </div></div>
-                  <p class="mx-auto card-text">${JSONResult[i]["artist"]}</p>
-                  <div class="btn-group">
-                    <button id="pause-play" type="button" class="d-flex mx-auto btn btn-Primary">
-                      <i class="fas fa-play"> Play</i>
-                    </button>
-                    <button id="Skip" type="button" class="d-flex mx-auto btn btn-Primary">
-                      <i class="fas fa-forward"> Skip</i>
-                    </button>
+        document.getElementById("currentSong").innerHTML =
+          `<div class="justify-content-center">
+                <div class="mx-auto card bg-dark border border-primary rounded-lg">
+                  <img id="currSongImg" class="mx-auto card-img-top" src="${''}" alt="No Song Playing" style="max-width:400px">
+                  <div class="mx-auto card-body text-center justify-content-center">
+                    <div class="d-flex d-inline-block">
+                    <h4 id="currSongName" class="mx-auto card-title">${"Song Name"}</h4>
+                    <div>
+                    </div></div>
+                    <p id="currSongArtist" class="mx-auto card-text">${"Artist"}</p>
+                    <div class="btn-group">
+                      <button id="pause-play" type="button" class="d-flex mx-auto btn btn-Primary">
+                        <i class="fas fa-play"> Play</i>
+                      </button>
+                      <button id="Skip" type="button" class="d-flex mx-auto btn btn-Primary">
+                        <i class="fas fa-forward"> Skip</i>
+                      </button>
+                    </div>
+                    <br>
+                    <div class="btn-group">
+                      <button type="button" id="push2playlist" class="btn btn-outline-primary">Push 2 Playlist</button>
+                      <button type="button" id="push2queue" class="btn btn-outline-primary">Push 2 Queue</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            `
-            const playPause = document.getElementById("pause-play");
-            const skip = document.getElementById("Skip");
-            (function (idx) {
-              playPause.addEventListener('click', (e) => {
-                const putData = `{\"context_uri\":\"${JSONResult[idx]['albumURI']}\",\"offset\":{\"position\":${JSONResult[idx]['trackIndex'] - 1},\"position_ms\":0}}`;
-                let spotifyDeviceId = getCookie('device_id');
-                if (!spotifyDeviceId) {
-                  console.error("connect to spotify device");
-                  return;
+              </div>`
+        document.getElementById("push2playlist").addEventListener('click', (e) => {
+          //check if it already exists
+          const spotifyURL = (`https://api.spotify.com/v1/me/playlists?limit=50`);
+          var spotifyPlaylistID = '';
+          $.ajax({
+            url: spotifyURL,
+            beforeSend: function (req) { req.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken")); },
+            dataType: "json",
+            success: function (tracks) {
+              console.log(tracks);
+              var PlayableListExists = false;
+              tracks.items.forEach(playlist => {
+                if (playlist.name == 'Playable List') {
+                  PlayableListExists = true;
+                  spotifyPlaylistID = playlist.id
                 }
-                const spotifyURL = (`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`);
-                const xmlhttp = new XMLHttpRequest();
-                xmlhttp.open("PUT", spotifyURL);
-                xmlhttp.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken"));
-                xmlhttp.send(putData);
               });
-              skip.addEventListener('click', (e) => {
-                //skip on spotify
-                const putData = ``;
-                const spotifyURL = ("https://api.spotify.com/v1/me/player/next");
-                const xmlhttp = new XMLHttpRequest();
-                xmlhttp.open("POST", spotifyURL);
-                xmlhttp.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken"));
-                xmlhttp.send(putData);
-                //remove
-                playable.methods.Remove(playlistID, JSONResult[idx]['songID']).send({ from: accounts[0] })
-                  .on("receipt", (receipt) => {
-                    $getAll.click();
-                  })
-                  .catch(_e => {
-                    console.error(_e);
+              //creating playlist
+              if (!PlayableListExists) {
+                //get userID
+                $.ajax({
+                  type: "GET",
+                  url: 'https://api.spotify.com/v1/me/',
+                  beforeSend: function (req) { req.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken")); },
+                  dataType: "json",
+                  async: false,
+                  success: function (data) {
+                    var userID = data.id
+                    //create playlist
+                    $.ajax({
+                      type: "POST",
+                      url: `https://api.spotify.com/v1/users/${userID}/playlists`,
+                      beforeSend: function (req) { req.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken")); },
+                      data: `{"name": "Playable List","description": "Playable List","public": true}`,
+                      dataType: "json",
+                      async: false,
+                      success: function (data) {
+                        console.log("Data: " + data);
+                        spotifyPlaylistID = data.id
+                      }, error: function (err) {
+                        console.log("Error retrieving spotify API\n", err);
+                      }, complete: function (data) {
+                        //console.log("complete", data)
+                      }
+                    });
+                  }, error: function (err) {
+                    console.log("Error retrieving spotify API\n", err);
+                  }, complete: function (data) {
+                    //console.log("complete", data)
+                  }
+                });
+              }
+              //push songs to the playlist
+              playable.methods.GetAll(playlistID).call()
+                .then(result => {
+                  var JSONResults = JSON.parse(result);
+                  JSONResults.sort((a, b) => parseInt(b['weight']) - parseInt(a['weight']));
+                  var tracks2add = `{"uris": [`;
+                  for (let index = 0; index < JSONResults.length; index++) {
+                    if (index == JSONResults.length - 1)
+                      tracks2add += `"${JSONResults[index].trackURI}"`;
+                    else
+                      tracks2add += `"${JSONResults[index].trackURI}", `;
+                  }
+                  tracks2add += `]}`;
+                  var JSONtracks2add = JSON.parse(tracks2add);
+                  $.ajax({
+                    type: "POST",
+                    url: `https://api.spotify.com/v1/playlists/${spotifyPlaylistID}/tracks`,
+                    beforeSend: function (req) { req.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken")); },
+                    dataType: "json",
+                    data: tracks2add,
+                    success: function (data) {
+                      console.log("Data: " + data);
+                    }, error: function (err) {
+                      console.log(err);
+                    }
                   });
-              });
-            })(i);
-          } else {
-            //const iframeElement = document.getElementById("playlist");
-            //$playlist.innerHTML = iframeElement;
-            //var windowList = iframeElement.contentWindow.document.getElementById("list")
+                });
+            }, error: function (err) {
+              console.log(err);
+            }
+          });
+        });
+        document.getElementById("push2queue").addEventListener('click', (e) => {
+          playable.methods.GetAll(playlistID).call()
+            .then(result => {
+              var JSONQueueResults = JSON.parse(result);
+              JSONQueueResults.sort((a, b) => parseInt(b['weight']) - parseInt(a['weight']));
+              for (let index = 0; index < JSONQueueResults.length; index++) {
+                const spotifyURL = (`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(JSONQueueResults[index]['trackURI'])}`);
+                $.ajax({
+                  type: "POST",
+                  url: spotifyURL,
+                  beforeSend: function (req) { req.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken")); },
+                  dataType: "json",
+                  async: false,
+                  success: function (data) {
+                    console.log("Data: " + data);
+                  }, error: function (err) {
+                    console.log(err);
+                  }
+                });
+              }
+            });
+        });
+        const playPause = document.getElementById("pause-play");
+        const skip = document.getElementById("Skip");
+        (function (idx) {
+          playPause.addEventListener('click', (e) => {
+            const putData = `{\"context_uri\":\"${JSONResult[idx]['albumURI']}\",\"offset\":{\"position\":${JSONResult[idx]['trackIndex'] - 1},\"position_ms\":0}}`;
+            let spotifyDeviceId = getCookie('device_id');
+            if (!spotifyDeviceId) {
+              console.error("connect to spotify device");
+              return;
+            }
 
-            $playlist.innerHTML +=
-              `
-          <li class="list-group-item bg-dark d-flex justify-content-between align-items-center">
-            <div class="d-inline-flex h-2 ">
-            <h1>${i}</h1>
-            <img src='${JSONResult[i]["albumImage"]}' alt='Thumbnail' style="width:64px;height:64px;">
-            </div>
-            <span>${JSONResult[i]["trackName"]} by ${JSONResult[i]["artist"]}</span>
-            <div>
-              <div class="input-group">
-                <input id="songWeight${i}" type="number" placeholder="Energy" class="form-control"></input>
-                <div>
-                  <div class="input-group-append">
-                    <button name="increase" id="increase"${i} type="button" class="btn btn-outline-Primary">Increase</button>
-                    <span id="weight" class="input-group-text">${JSONResult[i]["weight"]} Wei</span>
-                    <button name="remove" value="${JSONResult[i]["songID"]}" id="remove"${i} type="button" class="btn btn-danger close">
-                      <span aria-hidden="true">&times;</span>
-                    </button>
+            const spotifyURL = (`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`);
+            const xmlhttp = new XMLHttpRequest();
+            xmlhttp.open("PUT", spotifyURL);
+            xmlhttp.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken"));
+            xmlhttp.send(putData);
+          });
+          skip.addEventListener('click', (e) => {
+            //skip on spotify
+            const putData = ``;
+            const spotifyURL = ("https://api.spotify.com/v1/me/player/next");
+            const xmlhttp = new XMLHttpRequest();
+            xmlhttp.open("POST", spotifyURL);
+            xmlhttp.setRequestHeader("Authorization", "Bearer " + getCookie("spotifyToken"));
+            xmlhttp.send(putData);
+            //remove
+          });
+        })(i);
+        for (var i = 0; i < JSONResult.length; i++) {
+          $playlist.innerHTML +=
+          `
+            <li class="list-group-item bg-dark d-flex justify-content-between align-items-center">
+              <div class="d-inline-flex h-2 ">
+              <h1>${i}</h1>
+              <img src='${JSONResult[i]["albumImage"]}' alt='Thumbnail' style="width:64px;height:64px;">
+              </div>
+              <span>${JSONResult[i]["trackName"]} by ${JSONResult[i]["artist"]}</span>
+              <div>
+                <div class="input-group">
+                  <input id="newWeight${i}" type="number" placeholder="Energy" class="form-control" min="0"></input>
+                  <div>
+                    <div class="input-group-append">
+                      <span id="currWeight${i}" class="input-group-text">${JSONResult[i]["weight"]}</span>
+                      <button name="increase" id="increase"${i} value="${JSONResult[i]["songID"]}" type="button" class="btn btn-outline-Primary">Increase</button>
+                      <button name="remove" value="${JSONResult[i]["songID"]}" id="remove"${i} type="button" class="btn btn-danger close">
+                        <span aria-hidden="true">&times;</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </li>
+            </li>
           `
-          }
         }
       })
       .catch(_e => {
@@ -309,18 +424,31 @@ const initApp = () => {
       .finally(() => {
         const playlistID = document.getElementById('playlist-id').value;
         const removeButtons = document.getElementsByName("remove");
+        const increaseButtons = document.getElementsByName("increase");
         for (var i = 0; i < removeButtons.length; i++) {
           (function (idx) {
             var currButton = removeButtons[idx];
             removeButtons[idx].addEventListener('click', (e) => {
               e.preventDefault();
-              currButton.outerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+              currButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
               playable.methods.Remove(playlistID, currButton.value).send({ from: accounts[0] })
                 .on("receipt", (receipt) => {
                   $getAll.click();
                 })
                 .catch(_e => {
-                  console.error(_e);
+                  currButton.innerHTML = '<span aria-hidden="true">&times;</span>'
+                });
+            });
+            increaseButtons[idx].addEventListener('click', (e) => {
+              e.preventDefault();
+              increaseButtons[idx].innerHTML = `Updating<span class="spinner-border spinner-border-sm"></span>`;
+              var newEnergy = Number(document.getElementById(`newWeight${idx+1}`).value);
+              playable.methods.updateWeight(playlistID, currButton.value).send({ from: accounts[0], value: (newEnergy)})
+                .on("receipt", () => {
+                  $getAll.click();
+                })
+                .catch(_e => {
+                  increaseButtons[idx].innerHTML = "Increase";
                 });
             });
           })(i);
@@ -369,6 +497,5 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(e.message);
         document.getElementById('enableEthereumButton').style.display = "initial";
       });
-
   }
 });
